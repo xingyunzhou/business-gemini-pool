@@ -319,12 +319,13 @@ export async function streamChat(params: {
           parseAttachment(att, images);
         }
 
-        // 收集文本回复
-        const parts = content.parts || [];
-        for (const part of parts) {
-          if (part.text) {
-            replies.push(part.text);
-          }
+        // 收集文本回复（与 Python 版本一致）
+        const text = content.text || "";
+        const thought = content.thought || false;
+
+        // 只收集非 thought 的文本
+        if (text && !thought) {
+          replies.push(text);
         }
       }
     }
