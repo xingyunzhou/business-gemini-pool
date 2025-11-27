@@ -219,35 +219,8 @@ function createStreamResponse(
           }
         }
 
-        // 如果有图片，发送图片信息
-        if (images && images.length > 0) {
-          let imageInfo = "\n\n[Generated Images]\n";
-          for (const img of images) {
-            const imageUrl = img.url || `/api/images/${img.id}`;
-            imageInfo += `- ${img.filename} (${img.mime_type}): ${imageUrl}\n`;
-          }
-
-          const imageChunk = {
-            id,
-            object: "chat.completion.chunk",
-            created,
-            model,
-            choices: [
-              {
-                index: 0,
-                delta: {
-                  content: imageInfo,
-                },
-                finish_reason: null,
-              },
-            ],
-          };
-
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(imageChunk)}\n\n`));
-        }
-
-        // 发送结束标记
-        const finalChunk = {
+        // 发送结束标记（包含图片信息）
+        const finalChunk: any = {
           id,
           object: "chat.completion.chunk",
           created,
@@ -260,6 +233,11 @@ function createStreamResponse(
             },
           ],
         };
+
+        // 如果有图片，添加到最后的chunk中
+        if (images && images.length > 0) {
+          finalChunk.images = images;
+        }
 
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalChunk)}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));

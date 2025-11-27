@@ -130,6 +130,7 @@ export default function ChatInterface() {
 
     const decoder = new TextDecoder();
     let aiContent = "";
+    let aiImages: any[] | undefined;
 
     // 添加空的 AI 消息
     const aiMessage: Message = {
@@ -158,7 +159,17 @@ export default function ChatInterface() {
             // 更新最后一条消息
             messages.value = [
               ...messages.value.slice(0, -1),
-              { ...aiMessage, content: aiContent },
+              { ...aiMessage, content: aiContent, images: aiImages },
+            ];
+          }
+
+          // 提取图片信息（通常在最后一个chunk中）
+          if (json.images) {
+            aiImages = json.images;
+            // 更新最后一条消息，添加图片
+            messages.value = [
+              ...messages.value.slice(0, -1),
+              { ...aiMessage, content: aiContent, images: aiImages },
             ];
           }
         } catch (e) {
