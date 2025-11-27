@@ -112,15 +112,17 @@ export function isAuthenticatedAny(req: Request): boolean {
   }
 }
 
-// 设置会话 Cookie
+// 设置会话 Cookie（7天有效期）
 export function setSessionCookie(headers: Headers, token: string): void {
+  const isDeploy = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined;
+  
   setCookie(headers, {
     name: "session",
     value: token,
-    maxAge: 60 * 60 * 24 * 7, // 7天
+    maxAge: 60 * 60 * 24 * 7, // 7天 = 604800秒
     path: "/",
     httpOnly: true,
-    secure: true,
+    secure: isDeploy, // Deno Deploy 上使用 HTTPS，本地开发可能用 HTTP
     sameSite: "Lax",
   });
 }

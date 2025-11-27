@@ -1,7 +1,7 @@
 import { Head } from "$fresh/runtime.ts";
 import { Handlers } from "$fresh/server.ts";
 import { requireAuthRedirect } from "../lib/auth.ts";
-import AccountManager from "../islands/AccountManager.tsx";
+import TabManager from "../islands/TabManager.tsx";
 
 export const handler: Handlers = {
   GET(req, ctx) {
@@ -37,7 +37,7 @@ export default function Home() {
           </div>
         </header>
         <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <AccountManager />
+          <TabManager />
         </main>
       </div>
     </>

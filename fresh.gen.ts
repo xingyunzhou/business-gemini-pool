@@ -20,6 +20,8 @@ import * as $v1_chat_completions from "./routes/v1/chat/completions.ts";
 import * as $v1_models from "./routes/v1/models.ts";
 import * as $AccountManager from "./islands/AccountManager.tsx";
 import * as $ChatInterface from "./islands/ChatInterface.tsx";
+import * as $ModelManager from "./islands/ModelManager.tsx";
+import * as $TabManager from "./islands/TabManager.tsx";
 import { type Manifest } from "$fresh/server.ts";
 
 const manifest = {
@@ -44,6 +46,8 @@ const manifest = {
   islands: {
     "./islands/AccountManager.tsx": $AccountManager,
     "./islands/ChatInterface.tsx": $ChatInterface,
+    "./islands/ModelManager.tsx": $ModelManager,
+    "./islands/TabManager.tsx": $TabManager,
   },
   baseUrl: import.meta.url,
 } satisfies Manifest;
