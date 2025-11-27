@@ -366,19 +366,38 @@ export async function streamChat(params: {
         `\nCurrent session: ${currentSession}`
       );
 
+      // 先获取文件元数据，获取正确的session路径
+      let fileMetadata: Record<string, any> = {};
+      try {
+        fileMetadata = await listSessionFileMetadata({
+          jwt,
+          session: currentSession,
+          teamId,
+          proxy,
+        });
+        console.log(`Retrieved metadata for ${Object.keys(fileMetadata).length} files`);
+      } catch (err) {
+        console.warn("Failed to get file metadata, will use current session:", err);
+      }
+
       for (const finfo of fileIdsToDownload) {
         try {
-          console.log(`Downloading fileId: ${finfo.fileId} from session: ${currentSession}`);
+          // 从元数据中获取正确的session路径
+          const meta = fileMetadata[finfo.fileId];
+          const sessionPath = meta?.session || currentSession;
+          const fileName = finfo.fileName || meta?.name;
+
+          console.log(`Downloading fileId: ${finfo.fileId} from session: ${sessionPath}`);
           const imageData = await downloadFileWithJWT({
             jwt,
-            session: currentSession,
+            session: sessionPath,
             fileId: finfo.fileId,
             proxy,
           });
 
           if (imageData) {
             const filename =
-              finfo.fileName ||
+              fileName ||
               `${crypto.randomUUID()}.${finfo.mimeType.split("/")[1] || "png"}`;
             const base64Data = btoa(String.fromCharCode(...imageData));
 
