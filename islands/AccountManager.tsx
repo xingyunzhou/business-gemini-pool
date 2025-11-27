@@ -21,6 +21,17 @@ const accounts = signal<Account[]>([]);
 const stats = signal<Stats>({ total: 0, available: 0, unavailable: 0, currentIndex: 0 });
 const loading = signal(false);
 const showAddModal = signal(false);
+const jsonInput = signal("");
+const jsonError = signal("");
+
+// 表单字段信号
+const formFields = {
+  team_id: signal(""),
+  secure_c_ses: signal(""),
+  host_c_oses: signal(""),
+  csesidx: signal(""),
+  user_agent: signal(""),
+};
 
 export default function AccountManager() {
   useEffect(() => {
@@ -83,17 +94,61 @@ export default function AccountManager() {
     }
   }
 
+  function handleJsonInput(e: Event) {
+    const input = (e.target as HTMLTextAreaElement).value;
+    jsonInput.value = input;
+    jsonError.value = "";
+
+    if (!input.trim()) {
+      return;
+    }
+
+    try {
+      const data = JSON.parse(input);
+
+      // 验证必需字段
+      if (!data.team_id || !data.secure_c_ses || !data.csesidx) {
+        jsonError.value = "JSON 缺少必需字段 (team_id, secure_c_ses, csesidx)";
+        return;
+      }
+
+      // 填充表单
+      formFields.team_id.value = data.team_id || "";
+      formFields.secure_c_ses.value = data.secure_c_ses || "";
+      formFields.host_c_oses.value = data.host_c_oses || "";
+      formFields.csesidx.value = data.csesidx || "";
+      formFields.user_agent.value = data.user_agent || "";
+
+      jsonError.value = "";
+    } catch (error) {
+      jsonError.value = "JSON 格式错误，请检查";
+    }
+  }
+
+  function resetForm() {
+    formFields.team_id.value = "";
+    formFields.secure_c_ses.value = "";
+    formFields.host_c_oses.value = "";
+    formFields.csesidx.value = "";
+    formFields.user_agent.value = "";
+    jsonInput.value = "";
+    jsonError.value = "";
+  }
+
+  function openAddModal() {
+    resetForm();
+    showAddModal.value = true;
+  }
+
   async function addAccount(event: Event) {
     event.preventDefault();
-    const form = event.target as HTMLFormElement;
-    const formData = new FormData(form);
 
     const account = {
-      team_id: formData.get("team_id"),
-      secure_c_ses: formData.get("secure_c_ses"),
-      host_c_oses: formData.get("host_c_oses"),
-      csesidx: formData.get("csesidx"),
-      user_agent: formData.get("user_agent"),
+      team_id: formFields.team_id.value,
+      secure_c_ses: formFields.secure_c_ses.value,
+      host_c_oses: formFields.host_c_oses.value,
+      csesidx: formFields.csesidx.value,
+      user_agent: formFields.user_agent.value,
     };
 
     try {
@@ -105,7 +160,7 @@ export default function AccountManager() {
 
       if (res.ok) {
         showAddModal.value = false;
-        form.reset();
+        resetForm();
         await loadAccounts();
         alert("添加成功");
       } else {
@@ -145,7 +200,7 @@ export default function AccountManager() {
         <div class="p-6 border-b border-gray-200 flex justify-between items-center">
           <h2 class="text-lg font-semibold">账号列表</h2>
           <button
-            onClick={() => (showAddModal.value = true)}
+            onClick={openAddModal}
             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             添加账号
@@ -220,60 +275,110 @@ export default function AccountManager() {
 
       {/* 添加账号模态框 */}
       {showAddModal.value && (
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h3 class="text-lg font-semibold mb-4">添加账号</h3>
+
             <form onSubmit={addAccount}>
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Team ID</label>
-                  <input
-                    type="text"
-                    name="team_id"
-                    required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Secure C SES</label>
-                  <textarea
-                    name="secure_c_ses"
-                    required
-                    rows={3}
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Host C OSES (可选)</label>
-                  <textarea
-                    name="host_c_oses"
-                    rows={2}
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">CSESIDX</label>
-                  <input
-                    type="text"
-                    name="csesidx"
-                    required
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">User Agent (可选)</label>
-                  <input
-                    type="text"
-                    name="user_agent"
-                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Mozilla/5.0..."
-                  />
+              {/* JSON 快捷输入 */}
+              <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <label class="block text-sm font-medium text-blue-900 mb-2">
+                  🚀 快捷输入 (JSON 格式)
+                </label>
+                <textarea
+                  value={jsonInput.value}
+                  onInput={handleJsonInput}
+                  placeholder={'粘贴 JSON 格式账号信息，例如：\n{\n  "team_id": "...",\n  "secure_c_ses": "...",\n  "host_c_oses": "...",\n  "csesidx": "...",\n  "user_agent": "..."\n}'}
+                  rows={6}
+                  class="w-full px-3 py-2 border border-blue-300 rounded-md font-mono text-sm"
+                />
+                {jsonError.value && (
+                  <div class="mt-2 text-sm text-red-600">{jsonError.value}</div>
+                )}
+                {!jsonError.value && jsonInput.value && (
+                  <div class="mt-2 text-sm text-green-600">✓ JSON 解析成功，已自动填充表单</div>
+                )}
+                <div class="mt-2 text-xs text-blue-600">
+                  提示：粘贴 JSON 后，下方表单会自动填充。也可以手动填写。
                 </div>
               </div>
+
+              <div class="border-t border-gray-200 pt-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-4">或手动填写</h4>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">
+                      Team ID <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formFields.team_id.value}
+                      onInput={(e) => formFields.team_id.value = (e.target as HTMLInputElement).value}
+                      required
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      placeholder="2350088b-ed16-46d2-b512-4876391c5886"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">
+                      Secure C SES <span class="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={formFields.secure_c_ses.value}
+                      onInput={(e) => formFields.secure_c_ses.value = (e.target as HTMLTextAreaElement).value}
+                      required
+                      rows={3}
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+                      placeholder="CSE.ARsLs02l..."
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">
+                      Host C OSES (可选)
+                    </label>
+                    <textarea
+                      value={formFields.host_c_oses.value}
+                      onInput={(e) => formFields.host_c_oses.value = (e.target as HTMLTextAreaElement).value}
+                      rows={2}
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+                      placeholder="COS.AQH81rgL..."
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">
+                      CSESIDX <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formFields.csesidx.value}
+                      onInput={(e) => formFields.csesidx.value = (e.target as HTMLInputElement).value}
+                      required
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      placeholder="1772320590"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">
+                      User Agent (可选)
+                    </label>
+                    <input
+                      type="text"
+                      value={formFields.user_agent.value}
+                      onInput={(e) => formFields.user_agent.value = (e.target as HTMLInputElement).value}
+                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      placeholder="Mozilla/5.0..."
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div class="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => (showAddModal.value = false)}
+                  onClick={() => {
+                    showAddModal.value = false;
+                    resetForm();
+                  }}
                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
                   取消
