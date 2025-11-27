@@ -8,10 +8,18 @@ interface Message {
   images?: Array<{ id: string; filename: string; mime_type: string }>;
 }
 
+interface Model {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
 const messages = signal<Message[]>([]);
 const input = signal("");
 const loading = signal(false);
 const streamMode = signal(true);
+const availableModels = signal<Model[]>([]);
+const selectedModel = signal<string>("gemini-2.5-flash");
 
 export default function ChatInterface() {
   useEffect(() => {
@@ -35,7 +43,31 @@ export default function ChatInterface() {
         },
       ];
     }
+
+    // 加载可用模型列表
+    loadModels();
   }, []);
+
+  async function loadModels() {
+    try {
+      const res = await fetch("/api/models", { credentials: "include" });
+      const data = await res.json();
+      const models = data.models || [];
+      availableModels.value = models.filter((m: Model) => m.enabled);
+
+      // 如果当前选择的模型不可用，选择第一个可用模型
+      if (availableModels.value.length > 0) {
+        const isCurrentModelAvailable = availableModels.value.some(
+          (m) => m.id === selectedModel.value
+        );
+        if (!isCurrentModelAvailable) {
+          selectedModel.value = availableModels.value[0].id;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load models:", error);
+    }
+  }
 
   async function sendMessage() {
     if (!input.value.trim() || loading.value) return;
@@ -83,7 +115,7 @@ export default function ChatInterface() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gemini-enterprise",
+        model: selectedModel.value,
         messages: requestMessages,
         stream: true,
       }),
@@ -142,7 +174,7 @@ export default function ChatInterface() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gemini-enterprise",
+        model: selectedModel.value,
         messages: requestMessages,
         stream: false,
       }),
@@ -196,6 +228,22 @@ export default function ChatInterface() {
               class="rounded"
             />
             <span class="text-sm text-gray-700">流式响应</span>
+          </label>
+
+          {/* 模型选择器 */}
+          <label class="flex items-center space-x-2">
+            <span class="text-sm text-gray-700">模型:</span>
+            <select
+              value={selectedModel.value}
+              onChange={(e) => (selectedModel.value = (e.target as HTMLSelectElement).value)}
+              class="px-2 py-1 text-sm border border-gray-300 rounded"
+            >
+              {availableModels.value.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
         <button
