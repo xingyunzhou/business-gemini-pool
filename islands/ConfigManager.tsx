@@ -74,7 +74,7 @@ export default function ConfigManager() {
     }
 
     if (!config.value.upload_endpoint || !config.value.upload_api_token) {
-      testResult.value = "请先配置上传端点和 API Token";
+      testResult.value = "请先保存配置后再测试上传";
       return;
     }
 
@@ -85,20 +85,19 @@ export default function ConfigManager() {
       const formData = new FormData();
       formData.append("file", testFile.value);
 
-      const res = await fetch(config.value.upload_endpoint, {
+      // 通过后端API上传，避免CORS问题
+      const res = await fetch("/api/upload/test", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${config.value.upload_api_token}`,
-        },
+        credentials: "include",
         body: formData,
       });
 
       const data = await res.json();
 
-      if (res.ok) {
-        testResult.value = `上传成功！\n响应: ${JSON.stringify(data, null, 2)}`;
+      if (res.ok && data.success) {
+        testResult.value = `上传成功！\n文件名: ${data.filename}\n大小: ${data.size} bytes\n路径: ${data.src}\n完整URL: ${data.url}`;
       } else {
-        testResult.value = `上传失败 (${res.status}): ${JSON.stringify(data)}`;
+        testResult.value = `上传失败: ${data.error || "未知错误"}`;
       }
     } catch (error) {
       testResult.value = `上传失败: ${error}`;
