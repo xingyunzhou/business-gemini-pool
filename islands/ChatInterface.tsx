@@ -333,7 +333,8 @@ export default function ChatInterface() {
                 <div class="mt-3 space-y-2">
                   {msg.images.map((img, imgIdx) => {
                     const mediaUrl = img.url || `/api/images/${img.id}`;
-                    const isVideo = img.mime_type?.startsWith('video/');
+                    // 根据 URL 扩展名判断是否为视频
+                    const isVideo = /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaUrl);
 
                     return (
                       <div key={imgIdx} class="border rounded overflow-hidden bg-white">
