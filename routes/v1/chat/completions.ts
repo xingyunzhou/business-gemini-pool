@@ -78,14 +78,17 @@ export const handler: Handlers = {
               try {
                 const fileName = img.file_name || "image.png";
 
-                // 处理 fileId 引用（流式下载+上传）
+                // 处理 fileId 引用（下载后上传）
                 if (img.file_id && img.url) {
-                  console.log(`Processing fileId: ${img.file_id}`);
+                  console.log(`Processing fileId: ${img.file_id}, type: ${img.mime_type}`);
+
+                  // 判断是否为视频
+                  const isVideo = img.mime_type.startsWith('video/');
 
                   if (useUploadService) {
-                    // 流式下载并上传到 cfbed
+                    // 下载文件到内存
                     const { downloadFileWithJWT } = await import("../../../lib/gemini-api.ts");
-                    const { uploadStreamToCfbed } = await import("../../../lib/upload-service.ts");
+                    const { uploadToCfbed } = await import("../../../lib/upload-service.ts");
 
                     const stream = await downloadFileWithJWT({
                       jwt,
@@ -95,14 +98,36 @@ export const handler: Handlers = {
                     });
 
                     if (stream) {
-                      console.log(`Streaming upload ${fileName} to cfbed...`);
-                      const uploadResult = await uploadStreamToCfbed(
-                        config.upload_endpoint!,
-                        config.upload_api_token!,
-                        stream,
+                      console.log(`Downloading ${isVideo ? 'video' : 'image'}: ${fileName}...`);
+
+                      // 读取流到内存
+                      const reader = stream.getReader();
+                      const chunks: Uint8Array[] = [];
+                      while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                      }
+
+                      // 合并所有块
+                      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+                      const bytes = new Uint8Array(totalLength);
+                      let offset = 0;
+                      for (const chunk of chunks) {
+                        bytes.set(chunk, offset);
+                        offset += chunk.length;
+                      }
+
+                      console.log(`Downloaded ${totalLength} bytes, uploading to cfbed...`);
+
+                      // 上传到 cfbed
+                      const uploadResult = await uploadToCfbed({
+                        endpoint: config.upload_endpoint!,
+                        apiToken: config.upload_api_token!,
+                        file: bytes,
                         fileName,
-                        img.mime_type
-                      );
+                        mimeType: img.mime_type,
+                      });
 
                       const baseUrl = config.image_base_url || config.upload_endpoint!.replace(/\/upload$/, "");
                       const fullUrl = `${baseUrl}${uploadResult.src}`;
@@ -114,7 +139,7 @@ export const handler: Handlers = {
                         url: fullUrl,
                       });
 
-                      console.log(`Streamed to cfbed: ${fullUrl}`);
+                      console.log(`Uploaded to cfbed: ${fullUrl} (${totalLength} bytes)`);
                     }
                   } else {
                     // 下载并缓存到 Deno KV
